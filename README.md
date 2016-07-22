@@ -1,0 +1,2 @@
+1.kafka producer to receive github UDP socket data,and then sent with different Topics;
+2. kafka consumer: receive message, for json message, Parse json and then send to different vertica tables(related with Topics)

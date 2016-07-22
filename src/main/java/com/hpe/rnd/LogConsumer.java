@@ -1,11 +1,13 @@
 package com.hpe.rnd;
 
+import com.hpe.rnd.DAO.Log;
+import com.hpe.rnd.DAO.Topic;
+import com.hpe.rnd.DAO.Vertica;
 import net.sf.json.JSONObject;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -15,34 +17,71 @@ import java.util.Properties;
 public class LogConsumer{
     public static void main(String[] args) {
         Properties kafkaProperties = new Properties();
-        Properties topicProperties = new Properties();
+        KafkaConsumer<String, String> consumer =null;
+        Vertica vertica=null;
         try {
+            //1. consumer properties
             kafkaProperties.load(ClassLoader.getSystemResourceAsStream("consumer.properties"));
-            KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(kafkaProperties);
-            topicProperties.load(ClassLoader.getSystemResourceAsStream("topics.properties"));
-            String topics=topicProperties.getProperty("topics");
-            String messageOtherTopics=topicProperties.getProperty("messageOtherTopics");
-            String nonJsonTopics=topicProperties.getProperty("nonJsonTopics");
-            String nonMessageTopics=topicProperties.getProperty("nonMessageTopics");
-            String topicsAll[]=topics.concat(",").concat(messageOtherTopics).concat(",").concat(nonJsonTopics)
-                    .concat(",").concat(nonMessageTopics).split(",");
+            consumer= new KafkaConsumer<String, String>(kafkaProperties);
+            //2. topic properties
+            Topic topic=new Topic("topics.properties");
+            String topicsKeywords[]=topic.getTopicsKeywords();
+            String topicsStartKey=topic.getTopicsStartKey();
+            String messageOtherTopics=topic.getMessageOtherTopics();
+            String topicsString=topic.getTopicsString();
+            int topicsNo=topic.getTopicsNo();
+            String topicsVerticaTables[]=topic.getTopicsVerticaTables();
+            String topicsAll[]=(topicsString+","+messageOtherTopics).split(",");
+
+            String verticaTableColumnLength=topic.getVerticaTableColumnLength();
             consumer.subscribe(Arrays.asList(topicsAll));
+            Log.Info("Listening Topic:" + Arrays.toString(topicsAll));
+            //3. vertica connection
+            vertica=new Vertica("vertica.properties");
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
-                for (ConsumerRecord<String, String> record : records)
-                {
+                //System.out.println("records NO:"+records.count());
+                for (ConsumerRecord<String, String> record : records) {
+                   // System.out.println("in100");
                     //related topic, sent to related vertica table
                     System.out.printf("offset = %d, key = %s, value = %s", record.offset(), record.key(), record.value());
-                    JSONObject jsonObject = JSONObject.fromObject(record.value());
-                    Object jsonKeys[] = jsonObject.keySet().toArray();
-                    Object jsonValues[]=jsonObject.values().toArray();
-                    //System.out.println(jsonKeys[0]);
-                    //System.out.println(jsonValues[0]);
-                    System.out.println(jsonObject.keySet().toString());
+                    String str_packet = record.value();
+                    if (str_packet.indexOf("{") >= 0 && str_packet.indexOf("}") >= 0) {
+                        System.out.println("in1");
+                        JSONObject jsonObject = JSONObject.fromObject(str_packet);
+                        if (jsonObject.has(topicsStartKey)) {
+                            String message = jsonObject.getString(topicsStartKey);
+                            int i;
+                            for (i=0; i < topicsNo; i++) {
+                                if (message.indexOf(topicsKeywords[i]) > 0) {
+                                    //System.out.println(topicsKeywords[i]);
+                                    //get the table columns, and values
+                                    //remove @ for the column name
+                                    //Object jsonKeys[] = jsonObject.keySet().toArray();
+                                    Object jsonKeys[]=jsonObject.keySet().toString().replace("[", "").replace("]", "").replace("@","").split(",");
+                                    Object jsonValues[] = jsonObject.values().toArray();
+                                    int columnNo = jsonKeys.length;
+                                    String tableName = topicsVerticaTables[i];
+                                    vertica.intoVertica(tableName, jsonKeys, jsonValues, verticaTableColumnLength, columnNo);
+                                    break;
+                                }
+                            }
+                            //not covered message topics
+                            if (i == topicsNo) {
+                                System.out.println("not covered now!!!!!");
+                            }
+                        }
+                    }
+                }
             }
-        }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+        }finally {
+            System.out.println("close");
+            Log.Info("Vertica connection is closing...");
+            vertica.closeConn();
+            Log.Info("Consumer is closing...");
+            consumer.close();
         }
 
 

@@ -1,5 +1,7 @@
 package com.hpe.rnd;
 
+import com.hpe.rnd.DAO.Log;
+import com.hpe.rnd.DAO.Topic;
 import net.sf.json.JSONObject;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -20,28 +22,26 @@ public class LogProducer {
         //LogProducer<String, String> inner;
         Properties kafkaProperties = new Properties();
         Producer<String, String> producer =null;
-        Properties topicProperties = new Properties();
+        //Properties topicProperties = new Properties();
         Properties UDPSocketProperties = new Properties();
         try {
-
             //1. receive data from UDP socket
             UDPSocketProperties.load(ClassLoader.getSystemResourceAsStream("UDPSocket.properties"));
             String host = UDPSocketProperties.getProperty("host");
             int port =Integer.parseInt(UDPSocketProperties.getProperty("port"));
             int bufferSize =Integer.parseInt(UDPSocketProperties.getProperty("bufferSize"));
             DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(host));
-
             //2. properties setting for producer
             kafkaProperties.load(ClassLoader.getSystemResourceAsStream("producer.properties"));
             //3. get the known topics
-            topicProperties.load(ClassLoader.getSystemResourceAsStream("topics.properties"));
-            String topicsKeywords[]=topicProperties.getProperty("topicsKeywords").split(",");
-            String topics[]=topicProperties.getProperty("topics").split(",");
-            String topicsStartKey=topicProperties.getProperty("topicsStartKey");
-            String messageOtherTopics=topicProperties.getProperty("messageOtherTopics");
-            String nonJsonTopics=topicProperties.getProperty("nonJsonTopics");
-            String nonMessageTopics=topicProperties.getProperty("nonMessageTopics");
-            int topicsNo=topicsKeywords.length<=topics.length?topicsKeywords.length:topics.length;
+            Topic topic=new Topic("topics.properties");
+            String topicsKeywords[]=topic.getTopicsKeywords();
+            String topics[]=topic.getTopics();
+            String topicsStartKey=topic.getTopicsStartKey();
+            String messageOtherTopics=topic.getMessageOtherTopics();
+            String nonJsonTopics=topic.getNonJsonTopics();
+            String nonMessageTopics=topic.getNonMessageTopics();
+            int topicsNo=topic.getTopicsNo();
             //4. create the producer
             producer=new KafkaProducer<String, String>(kafkaProperties);
             DatagramPacket packet=null;
@@ -54,7 +54,7 @@ public class LogProducer {
                 String str_packet=new String(packet.getData());
                 //the info is json, get the keyword of key: message
                 //eg: check the message: github github_production, then send to github_production topic
-                if(str_packet.indexOf("{")>0 && str_packet.indexOf("}")>0) {
+                if(str_packet.indexOf("{")>=0 && str_packet.indexOf("}")>=0) {
                     JSONObject jsonObject = JSONObject.fromObject(str_packet);
                     if (jsonObject.has(topicsStartKey)) {
                         String message = jsonObject.getString(topicsStartKey);
@@ -82,6 +82,7 @@ public class LogProducer {
         } catch (IOException e) {
             e.printStackTrace();
         }finally {
+            Log.Info("Producer is closing...");
             producer.close();
         }
     }
