@@ -14,31 +14,34 @@ public class Topic {
     private String topicsVerticaTables[];
     private String topicsStartKey;
     private String verticaTableColumnLength;
+    private String messageTopics;
     private String messageOtherTopics;
     private String nonJsonTopics;
     private String nonMessageTopics;
     private int topicsNo;
 
-    public Topic(){
+    public Topic() {
 
     }
-    public Topic(String propertyFile){
-        topicProperties= new Properties();
+
+    public Topic(String propertyFile) {
+        topicProperties = new Properties();
         try {
             topicProperties.load(ClassLoader.getSystemResourceAsStream(propertyFile));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        topicsKeywords=topicProperties.getProperty("topicsKeywords").split(",");
-        topics=topicProperties.getProperty("topics").split(",");
-        topicsString=topicProperties.getProperty("topics");
-        topicsVerticaTables=topicProperties.getProperty("topicsVerticaTables").split(",");
-        topicsStartKey=topicProperties.getProperty("topicsStartKey");
-        messageOtherTopics=topicProperties.getProperty("messageOtherTopics");
-        nonJsonTopics=topicProperties.getProperty("nonJsonTopics");
-        nonMessageTopics=topicProperties.getProperty("nonMessageTopics");
-        topicsNo=topicsKeywords.length<=topics.length?topicsKeywords.length:topics.length;
-        verticaTableColumnLength=topicProperties.getProperty("verticaTableColumnLength");
+        topicsKeywords = topicProperties.getProperty("topicsKeywords").split(",");
+        topics = topicProperties.getProperty("topics").split(",");
+        topicsString = topicProperties.getProperty("topics");
+        topicsVerticaTables = topicProperties.getProperty("topicsVerticaTables").split(",");
+        topicsStartKey = topicProperties.getProperty("topicsStartKey");
+        messageTopics = topicProperties.getProperty("messageTopics");
+        messageOtherTopics = topicProperties.getProperty("messageOtherTopics");
+        nonJsonTopics = topicProperties.getProperty("nonJsonTopics");
+        nonMessageTopics = topicProperties.getProperty("nonMessageTopics");
+        topicsNo = topicsKeywords.length <= topics.length ? topicsKeywords.length : topics.length;
+        verticaTableColumnLength = topicProperties.getProperty("verticaTableColumnLength");
     }
 
     public Properties getTopicProperties() {
@@ -71,6 +74,14 @@ public class Topic {
 
     public void setTopicsStartKey(String topicsStartKey) {
         this.topicsStartKey = topicsStartKey;
+    }
+
+    public String getMessageTopics() {
+        return messageTopics;
+    }
+
+    public void setMessageTopics(String messageTopics) {
+        this.messageTopics = messageTopics;
     }
 
     public String getMessageOtherTopics() {
