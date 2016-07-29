@@ -5,16 +5,16 @@ package com.hpe.rnd;
  */
 public class Run {
     public static void main(String[] args) {
-        if(args.length<1){
+        if (args.length < 1) {
             throw new IllegalArgumentException("Must have either 'producer' or 'consumer' as argument...");
-        }else{
-            int p=0;
-            if(args[0].equals("producer")){
-                p=1;
-            }else if(args[0].equals("consumer")){
-                p=2;
+        } else {
+            int p = 0;
+            if (args[0].equals("producer")) {
+                p = 1;
+            } else if (args[0].equals("consumer")) {
+                p = 2;
             }
-            switch(p){
+            switch (p) {
                 case 1:
                     LogProducer.main(args);
                     break;
@@ -26,4 +26,6 @@ public class Run {
             }
         }
     }
+
+
 }

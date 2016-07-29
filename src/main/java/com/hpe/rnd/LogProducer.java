@@ -13,6 +13,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.Properties;
 
+import static java.lang.System.exit;
+
 /**
  * Created by chzhenzh on 7/8/2016.
  */
@@ -21,67 +23,59 @@ public class LogProducer {
     public static void main(String[] args) {
         //LogProducer<String, String> inner;
         Properties kafkaProperties = new Properties();
-        Producer<String, String> producer =null;
+        Producer<String, String> producer = null;
         //Properties topicProperties = new Properties();
         Properties UDPSocketProperties = new Properties();
         try {
             //1. receive data from UDP socket
             UDPSocketProperties.load(ClassLoader.getSystemResourceAsStream("UDPSocket.properties"));
             String host = UDPSocketProperties.getProperty("host");
-            int port =Integer.parseInt(UDPSocketProperties.getProperty("port"));
-            int bufferSize =Integer.parseInt(UDPSocketProperties.getProperty("bufferSize"));
+            int port = Integer.parseInt(UDPSocketProperties.getProperty("port"));
+            int bufferSize = Integer.parseInt(UDPSocketProperties.getProperty("bufferSize"));
             DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(host));
             //2. properties setting for producer
             kafkaProperties.load(ClassLoader.getSystemResourceAsStream("producer.properties"));
             //3. get the known topics
-            Topic topic=new Topic("topics.properties");
-            String topicsKeywords[]=topic.getTopicsKeywords();
-            String topics[]=topic.getTopics();
-            String topicsStartKey=topic.getTopicsStartKey();
-            String messageOtherTopics=topic.getMessageOtherTopics();
-            String nonJsonTopics=topic.getNonJsonTopics();
-            String nonMessageTopics=topic.getNonMessageTopics();
-            int topicsNo=topic.getTopicsNo();
+            Topic topic = new Topic("topics.properties");
+//            String topicsKeywords[] = topic.getTopicsKeywords();
+//            String topics[] = topic.getTopics();
+            String topicsStartKey = topic.getTopicsStartKey();
+            String messageTopics = topic.getMessageTopics();
+//            String messageOtherTopics = topic.getMessageOtherTopics();
+            String nonJsonTopics = topic.getNonJsonTopics();
+            String nonMessageTopics = topic.getNonMessageTopics();
+//            int topicsNo = topic.getTopicsNo();
             //4. create the producer
-            producer=new KafkaProducer<String, String>(kafkaProperties);
-            DatagramPacket packet=null;
-            byte[] buffer=null;
-            while(true){
+            producer = new KafkaProducer<String, String>(kafkaProperties);
+            DatagramPacket packet = null;
+            byte[] buffer = null;
+            while (true) {
                 //4.1 receive the UDP info
-                buffer= new byte[bufferSize];
-                packet= new DatagramPacket(buffer, buffer.length);
+                buffer = new byte[bufferSize];
+                packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
-                String str_packet=new String(packet.getData());
+                String str_packet = new String(packet.getData());
+                System.out.println(str_packet);
+
                 //the info is json, get the keyword of key: message
                 //eg: check the message: github github_production, then send to github_production topic
-                if(str_packet.indexOf("{")>=0 && str_packet.indexOf("}")>=0) {
+                if (str_packet.indexOf("{") >= 0 && str_packet.indexOf("}") >= 0) {
                     JSONObject jsonObject = JSONObject.fromObject(str_packet);
                     if (jsonObject.has(topicsStartKey)) {
-                        String message = jsonObject.getString(topicsStartKey);
-                        int i = 0;
-                        for (; i < topicsNo; i++) {
-                            if (message.indexOf(topicsKeywords[i]) > 0) {
-                                producer.send(new ProducerRecord<String, String>(topics[i], str_packet));
-                                break;
-                            }
-                        }
-                        //not covered message topics
-                        if (i == topicsNo) {
-                            producer.send(new ProducerRecord<String, String>(messageOtherTopics, str_packet));
-                        }
-                    }else{
+                        producer.send(new ProducerRecord<String, String>(messageTopics, str_packet));
+                    } else {
                         //not message start topics
                         producer.send(new ProducerRecord<String, String>(nonMessageTopics, str_packet));
                     }
-                }else{
+                } else {
                     //plain text topic,not json
                     producer.send(new ProducerRecord<String, String>(nonJsonTopics, str_packet));
                 }
-                buffer=null;
+                buffer = null;
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             Log.Info("Producer is closing...");
             producer.close();
         }
